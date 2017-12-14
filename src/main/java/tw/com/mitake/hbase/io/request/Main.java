@@ -101,10 +101,10 @@ public class Main {
     }
 
     private static void printData(List<RegionRequest> regionRequests) {
-        System.out.println("Name\tRead Count\tWrite Count\n");
+        System.out.println("Name\tRead Count\tWrite Count\tTotal Count\n");
 
         for (RegionRequest regionRequest : regionRequests) {
-            System.out.println(regionRequest.name + "\t" + regionRequest.readCount + "\t" + regionRequest.writeCount);
+            System.out.println(regionRequest.name + "\t" + regionRequest.readCount + "\t" + regionRequest.writeCount + "\t" + (regionRequest.readCount + regionRequest.writeCount));
         }
 
         Element regionServer = DOC.selectFirst("#tab_requestStats > table > tbody > tr:nth-child(2)");
