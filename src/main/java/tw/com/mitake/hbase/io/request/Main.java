@@ -14,6 +14,7 @@ import java.util.List;
 public class Main {
     private static String URL;
     private static int DIRECTION;
+    private static Document DOC;
 
     public static void main(String[] args) {
         initial(args);
@@ -51,14 +52,14 @@ public class Main {
         List<TableRequest> tableRequests = new ArrayList<TableRequest>();
 
         try {
-            Document doc = Jsoup.connect(URL + "/master-status").get();
+            DOC = Jsoup.connect(URL + "/master-status").get();
 
-            Elements tables = doc.select("#tab_userTables > table > tbody > tr > td:nth-child(2)");
+            Elements tables = DOC.select("#tab_userTables > table > tbody > tr > td:nth-child(2)");
 
             for (Element table : tables) {
-                Document tableDoc = Jsoup.connect(URL + "/table.jsp?name=" + table.text()).get();
+                Document docTable = Jsoup.connect(URL + "/table.jsp?name=" + table.text()).get();
 
-                Element request = tableDoc.selectFirst("body > div.container-fluid.content > div:nth-child(2) > table:nth-child(4) > tbody > tr:nth-child(2) > td:nth-child(6)");
+                Element request = docTable.selectFirst("body > div.container-fluid.content > div:nth-child(2) > table:nth-child(4) > tbody > tr:nth-child(2) > td:nth-child(6)");
 
                 System.out.println("Name: " + table.text());
 
@@ -87,6 +88,17 @@ public class Main {
         for (TableRequest tableRequest : tableRequests) {
             System.out.println(tableRequest.name + "\t" + tableRequest.requests);
         }
+
+        Element regionServer = DOC.selectFirst("#tab_requestStats > table > tbody > tr:nth-child(2)");
+
+        long requestPerSecond = Long.valueOf(regionServer.selectFirst("td:nth-child(2)").text());
+        long readRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(3)").text());
+        long writeRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(4)").text());
+
+        System.out.println("\nRegion Servers\n");
+        System.out.println("Request Per Second\tRead Request Count\tWrite Request Count");
+        System.out.println("------------------\t------------------\t-------------------");
+        System.out.println(requestPerSecond + "\t" + readRequestCount + "\t" + writeRequestCount);
     }
 
     public static class TableRequest {
