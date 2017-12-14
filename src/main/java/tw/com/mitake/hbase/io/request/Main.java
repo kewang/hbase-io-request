@@ -8,36 +8,52 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class Main {
     private static String URL;
+    private static boolean SORT_BY_WRITE;
     private static int DIRECTION;
     private static Document DOC;
 
     public static void main(String[] args) {
         initial(args);
 
-        List<TableRequest> tableRequests = gatherData();
+        List<RegionRequest> regionRequests = gatherData();
 
-        sortData(tableRequests);
+        if (regionRequests.isEmpty()) {
+            System.out.println("No data");
 
-        printData(tableRequests);
+            System.exit(0);
+        }
+
+        sortData(regionRequests);
+
+        printData(regionRequests);
     }
 
     private static void initial(String[] args) {
-        if (args.length != 2) {
-            System.out.println("Please input HBase URL (e.g. http://10.1.18.168:60010) and sort direction (e.g. 'inc' or 'desc')");
+        if (args.length != 3) {
+            System.out.println("Please input HBase Region Server URL (e.g. http://10.1.18.168:60030), sort field (e.g. 'w' or 'r'), sort direction (e.g. 'inc' or 'desc')");
 
             System.exit(1);
         }
 
         URL = args[0];
 
-        if (args[1].equalsIgnoreCase("inc")) {
+        if (args[1].equalsIgnoreCase("w")) {
+            SORT_BY_WRITE = true;
+        } else if (args[1].equalsIgnoreCase("r")) {
+            SORT_BY_WRITE = false;
+        } else {
+            System.out.println("Please input 'w' or 'r'");
+
+            System.exit(1);
+        }
+
+        if (args[2].equalsIgnoreCase("inc")) {
             DIRECTION = 1;
-        } else if (args[1].equalsIgnoreCase("desc")) {
+        } else if (args[2].equalsIgnoreCase("desc")) {
             DIRECTION = -1;
         } else {
             System.out.println("Please input 'inc' or 'desc'");
@@ -46,54 +62,56 @@ public class Main {
         }
     }
 
-    private static List<TableRequest> gatherData() {
+    private static List<RegionRequest> gatherData() {
         System.out.println("Gathering data...\n");
 
-        List<TableRequest> tableRequests = new ArrayList<TableRequest>();
+        List<RegionRequest> regionRequests = new ArrayList<RegionRequest>();
 
         try {
-            DOC = Jsoup.connect(URL + "/master-status").get();
+            DOC = Jsoup.connect(URL + "/rs-status?filter=all").get();
 
-            Elements tables = DOC.select("#tab_userTables > table > tbody > tr > td:nth-child(2)");
+            Elements regions = DOC.select("#tab_regionRequestStats > table > tbody > tr:not(:first-child)");
 
-            for (Element table : tables) {
-                Document docTable = Jsoup.connect(URL + "/table.jsp?name=" + table.text()).get();
+            for (Element region : regions) {
+                Element retionNameElem = region.selectFirst("td:nth-child(1)");
+                Element readCountElem = region.selectFirst("td:nth-child(2)");
+                Element writeCountElem = region.selectFirst("td:nth-child(3)");
 
-                Element request = docTable.selectFirst("body > div.container-fluid.content > div:nth-child(2) > table:nth-child(4) > tbody > tr:nth-child(2) > td:nth-child(6)");
+                String[] regionNameParts = retionNameElem.text().split(",");
 
-                System.out.println("Name: " + table.text());
+                String regionName = regionNameParts[0] + "," + regionNameParts[1];
 
-                TableRequest tableRequest = new TableRequest(table.text(), Long.valueOf(request.text()));
+                System.out.println("Name: " + regionName);
 
-                tableRequests.add(tableRequest);
+                RegionRequest regionRequest = new RegionRequest(regionName, Long.valueOf(readCountElem.text()), Long.valueOf(writeCountElem.text()));
+
+                regionRequests.add(regionRequest);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return tableRequests;
+        return regionRequests;
     }
 
-    private static void sortData(List<TableRequest> tableRequests) {
+    private static void sortData(List<RegionRequest> regionRequests) {
         System.out.println("\nSorting data...\n");
 
-        Collections.sort(tableRequests, new Comparator<TableRequest>() {
-            public int compare(TableRequest t1, TableRequest t2) {
-                return DIRECTION * (int) (t1.requests - t2.requests);
-            }
-        });
+        Collections.sort(regionRequests);
     }
 
-    private static void printData(List<TableRequest> tableRequests) {
-        for (TableRequest tableRequest : tableRequests) {
-            System.out.println(tableRequest.name + "\t" + tableRequest.requests);
+    private static void printData(List<RegionRequest> regionRequests) {
+        System.out.println("Name\tRead Count\tWrite Count\n");
+
+        for (RegionRequest regionRequest : regionRequests) {
+            System.out.println(regionRequest.name + "\t" + regionRequest.readCount + "\t" + regionRequest.writeCount);
         }
 
         Element regionServer = DOC.selectFirst("#tab_requestStats > table > tbody > tr:nth-child(2)");
 
-        long requestPerSecond = Long.valueOf(regionServer.selectFirst("td:nth-child(2)").text());
-        long readRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(3)").text());
-        long writeRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(4)").text());
+        long requestPerSecond = Long.valueOf(regionServer.selectFirst("td:nth-child(1)").text());
+        long readRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(2)").text());
+        long writeRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(3)").text());
 
         System.out.println("\nRegion Servers\n");
         System.out.println("Request Per Second\tRead Request Count\tWrite Request Count");
@@ -101,13 +119,23 @@ public class Main {
         System.out.println(requestPerSecond + "\t" + readRequestCount + "\t" + writeRequestCount);
     }
 
-    public static class TableRequest {
+    public static class RegionRequest implements Comparable<RegionRequest> {
         private String name;
-        private long requests;
+        private long readCount;
+        private long writeCount;
 
-        public TableRequest(String name, long requests) {
+        public RegionRequest(String name, long readCount, long writeCount) {
             this.name = name;
-            this.requests = requests;
+            this.readCount = readCount;
+            this.writeCount = writeCount;
+        }
+
+        public int compareTo(RegionRequest o) {
+            if (SORT_BY_WRITE) {
+                return DIRECTION * (int) (this.writeCount - o.writeCount);
+            } else {
+                return DIRECTION * (int) (this.readCount - o.readCount);
+            }
         }
     }
 }
