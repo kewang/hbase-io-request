@@ -73,13 +73,17 @@ public class Main {
             Elements regions = DOC.select("#tab_regionRequestStats > table > tbody > tr:not(:first-child)");
 
             for (Element region : regions) {
-                Element retionNameElem = region.selectFirst("td:nth-child(1)");
+                Element regionNameElem = region.selectFirst("td:nth-child(1)");
                 Element readCountElem = region.selectFirst("td:nth-child(2)");
                 Element writeCountElem = region.selectFirst("td:nth-child(3)");
 
-                String[] regionNameParts = retionNameElem.text().split(",");
+                String[] regionNameParts = regionNameElem.text().split(",");
 
-                String regionName = regionNameParts[0] + "," + regionNameParts[1];
+                String regionName = regionNameParts[0];
+
+                if (regionNameParts[1].length() != 0) {
+                    regionName += "," + regionNameParts[1];
+                }
 
                 System.out.println("Name: " + regionName);
 
