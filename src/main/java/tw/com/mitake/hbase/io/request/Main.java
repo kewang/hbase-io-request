@@ -1,4 +1,4 @@
-package tw.kewang.hbase.io.request;
+package tw.com.mitake.hbase.io.request;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
