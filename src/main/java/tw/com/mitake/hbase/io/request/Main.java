@@ -16,8 +16,18 @@ public class Main {
     private static int DIRECTION;
 
     public static void main(String[] args) {
+        initial(args);
+
+        List<TableRequest> tableRequests = gatherData();
+
+        sortData(tableRequests);
+
+        printData(tableRequests);
+    }
+
+    private static void initial(String[] args) {
         if (args.length != 2) {
-            System.out.println("Please input HBase URL (e.g. http://10.1.18.168:60010) and sort direction (e.g. 'inc' or 'desc'");
+            System.out.println("Please input HBase URL (e.g. http://10.1.18.168:60010) and sort direction (e.g. 'inc' or 'desc')");
 
             System.exit(1);
         }
@@ -33,12 +43,14 @@ public class Main {
 
             System.exit(1);
         }
+    }
+
+    private static List<TableRequest> gatherData() {
+        System.out.println("Gathering data...\n");
 
         List<TableRequest> tableRequests = new ArrayList<TableRequest>();
 
         try {
-            System.out.println("Gathering data...\n");
-
             Document doc = Jsoup.connect(URL + "/master-status").get();
 
             Elements tables = doc.select("#tab_userTables > table > tbody > tr > td:nth-child(2)");
@@ -58,6 +70,10 @@ public class Main {
             e.printStackTrace();
         }
 
+        return tableRequests;
+    }
+
+    private static void sortData(List<TableRequest> tableRequests) {
         System.out.println("\nSorting data...\n");
 
         Collections.sort(tableRequests, new Comparator<TableRequest>() {
@@ -65,7 +81,9 @@ public class Main {
                 return DIRECTION * (int) (t1.requests - t2.requests);
             }
         });
+    }
 
+    private static void printData(List<TableRequest> tableRequests) {
         for (TableRequest tableRequest : tableRequests) {
             System.out.println(tableRequest.name + "\t" + tableRequest.requests);
         }
