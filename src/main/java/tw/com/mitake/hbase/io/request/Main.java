@@ -144,6 +144,8 @@ public class Main {
     }
 
     private static void writeData(List<RegionRequest> regionRequests) throws IOException {
+        System.out.println("\nWriting data to " + OUTPUT_FILENAME + " ...\n");
+
         FileWriter writer = new FileWriter(OUTPUT_FILENAME);
 
         CSVPrinter csv = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(HEADERS));
@@ -154,6 +156,8 @@ public class Main {
 
         csv.flush();
         writer.flush();
+
+        System.out.println("\nWrote data OK\n");
     }
 
     public static class RegionRequest implements Comparable<RegionRequest> {
