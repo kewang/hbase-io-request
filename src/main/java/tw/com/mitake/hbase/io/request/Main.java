@@ -19,6 +19,7 @@ public class Main {
     private static String URL;
     private static SortField SORT_FIELD;
     private static int DIRECTION;
+    private static boolean MERGE;
     private static String OUTPUT_FILENAME;
     private static Document DOC;
 
@@ -31,6 +32,10 @@ public class Main {
             System.out.println("No data");
 
             System.exit(0);
+        }
+
+        if (MERGE) {
+            regionRequests = mergeData(regionRequests);
         }
 
         sortData(regionRequests);
@@ -47,8 +52,8 @@ public class Main {
     }
 
     private static void initial(String[] args) {
-        if (args.length < 3) {
-            System.out.println("Please input HBase Region Server URL (e.g. http://10.1.18.168:60030), sort field (e.g. 'w' or 'r' or 't'), sort direction (e.g. 'inc' or 'desc'), output filename");
+        if (args.length < 4) {
+            System.out.println("Please input HBase Region Server URL (e.g. http://10.1.18.168:60030), sort field (e.g. 'w' or 'r' or 't'), sort direction (e.g. 'inc' or 'desc'), merge (e.g. 'y' or 'n'), output filename");
 
             System.exit(1);
         }
@@ -77,8 +82,18 @@ public class Main {
             System.exit(1);
         }
 
-        if (args.length == 4) {
-            OUTPUT_FILENAME = args[3];
+        if (args[3].equalsIgnoreCase("y")) {
+            MERGE = true;
+        } else if (args[3].equalsIgnoreCase("n")) {
+            MERGE = false;
+        } else {
+            System.out.println("Please input 'y' or 'n'");
+
+            System.exit(1);
+        }
+
+        if (args.length == 5) {
+            OUTPUT_FILENAME = args[4];
         }
     }
 
@@ -101,13 +116,17 @@ public class Main {
 
                 String regionName = regionNameParts[0];
 
+                boolean split = false;
+
                 if (regionNameParts[1].length() != 0) {
+                    split = true;
+
                     regionName += "," + regionNameParts[1];
                 }
 
                 System.out.println("Name: " + regionName);
 
-                RegionRequest regionRequest = new RegionRequest(regionName, Long.valueOf(readCountElem.text()), Long.valueOf(writeCountElem.text()));
+                RegionRequest regionRequest = new RegionRequest(regionName, split, Long.valueOf(readCountElem.text()), Long.valueOf(writeCountElem.text()));
 
                 regionRequests.add(regionRequest);
             }
@@ -116,6 +135,30 @@ public class Main {
         }
 
         return regionRequests;
+    }
+
+    private static List<RegionRequest> mergeData(List<RegionRequest> regionRequests) {
+        List<RegionRequest> newData = new ArrayList<RegionRequest>();
+
+        for (RegionRequest regionRequest : regionRequests) {
+            boolean found = false;
+
+            for (RegionRequest newDataElem : newData) {
+                if (newDataElem.name.equals(regionRequest.name) && newDataElem.split) {
+                    newDataElem.readCount += regionRequest.readCount;
+                    newDataElem.writeCount += regionRequest.writeCount;
+                    newDataElem.totalCount += regionRequest.totalCount;
+
+                    found = true;
+                }
+            }
+
+            if (!found) {
+                newData.add(regionRequest);
+            }
+        }
+
+        return newData;
     }
 
     private static void sortData(List<RegionRequest> regionRequests) {
@@ -162,12 +205,14 @@ public class Main {
 
     public static class RegionRequest implements Comparable<RegionRequest> {
         private String name;
+        private boolean split;
         private long readCount;
         private long writeCount;
         private long totalCount;
 
-        public RegionRequest(String name, long readCount, long writeCount) {
+        public RegionRequest(String name, boolean split, long readCount, long writeCount) {
             this.name = name;
+            this.split = split;
             this.readCount = readCount;
             this.writeCount = writeCount;
             this.totalCount = readCount + writeCount;
