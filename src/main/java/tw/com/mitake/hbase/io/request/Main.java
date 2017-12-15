@@ -53,12 +53,12 @@ public class Main {
 
     private static void initial(String[] args) {
         if (args.length < 4) {
-            System.out.println("Please input HBase Region Server URL (e.g. http://10.1.18.168:60030), sort field (e.g. 'w' or 'r' or 't'), sort direction (e.g. 'inc' or 'desc'), merge (e.g. 'y' or 'n'), output filename");
+            System.out.println("Please input HBase Region Server URL (e.g. 10.1.18.168:60030), sort field (e.g. 'w' or 'r' or 't'), sort direction (e.g. 'inc' or 'desc'), merge (e.g. 'y' or 'n'), output filename");
 
             System.exit(1);
         }
 
-        URL = args[0];
+        URL = "http://" + args[0];
 
         if (args[1].equalsIgnoreCase("w")) {
             SORT_FIELD = SortField.WRITE;
@@ -121,7 +121,9 @@ public class Main {
                 if (regionNameParts[1].length() != 0) {
                     split = true;
 
-                    regionName += "," + regionNameParts[1];
+                    if (!MERGE) {
+                        regionName += "," + regionNameParts[1];
+                    }
                 }
 
                 System.out.println("Name: " + regionName);
@@ -144,7 +146,7 @@ public class Main {
             boolean found = false;
 
             for (RegionRequest newDataElem : newData) {
-                if (newDataElem.name.equals(regionRequest.name) && newDataElem.split) {
+                if (newDataElem.name.equals(regionRequest.name) && regionRequest.split) {
                     newDataElem.readCount += regionRequest.readCount;
                     newDataElem.writeCount += regionRequest.writeCount;
                     newDataElem.totalCount += regionRequest.totalCount;
@@ -180,8 +182,7 @@ public class Main {
         long readRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(2)").text());
         long writeRequestCount = Long.valueOf(regionServer.selectFirst("td:nth-child(3)").text());
 
-        System.out.println("\nRegion Servers\n");
-        System.out.println("Request Per Second\tRead Request Count\tWrite Request Count");
+        System.out.println("\nRequest Per Second\tRead Request Count\tWrite Request Count");
         System.out.println("------------------\t------------------\t-------------------");
         System.out.println(requestPerSecond + "\t" + readRequestCount + "\t" + writeRequestCount);
     }
